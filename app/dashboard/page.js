@@ -5,7 +5,7 @@ import Navbar from "../../components/Navbar";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import CodeEditorModal from "../../components/CodeEditorModal";
 import { useAuth } from "../../context/AuthContext";
-import { db } from "../../lib/firebase";
+import { db,storage } from "../../lib/firebase";
 import {
   collection,
   addDoc,
@@ -14,6 +14,7 @@ import {
   onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const S = {
   appContainer: {
@@ -442,6 +443,8 @@ export default function Dashboard() {
   const [posting, setPosting] = useState(false);
   const [showCodeEditor, setShowCodeEditor] = useState(false);
 
+  const [selectedImage, setSelectedImage] = useState(null);
+
   const handleInsertCode = (markdownBlock) => {
     setContent((prev) =>
       prev ? prev + "\n" + markdownBlock : markdownBlock
@@ -463,6 +466,7 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+
   const handleCreatePost = async () => {
     if (!content.trim() || !user) return;
     try {
@@ -478,6 +482,9 @@ export default function Dashboard() {
         comments: [],
       });
       setContent("");
+      setSelectedImage(null);// Clear selected image after posting
+
+
     } catch (err) {
       console.error(err);
       setError("Failed to create post. Please try again.");
@@ -485,6 +492,15 @@ export default function Dashboard() {
       setPosting(false);
     }
   };
+
+  const handleImageSelect = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  setSelectedImage(file);
+  console.log("Selected image:", file);
+
+};
 
   return (
     <ProtectedRoute>
@@ -554,9 +570,54 @@ export default function Dashboard() {
 
                 {error && <p style={{ color: "red", marginTop: 10 }}>{error}</p>}
 
-                <div style={S.composerActions}>
+                {selectedImage && (
+                  <div
+                    style={{
+                      position: "relative",
+                      marginTop: 10,
+                      display: "inline-block",
+                    }}
+                  >
+                    <img
+                      src={URL.createObjectURL(selectedImage)}
+                      alt="Preview"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 250,
+                        borderRadius: 8,
+                        
+                      }}
+                    />
+
+                    <button
+                      onClick={() => setSelectedImage(null)}
+                      style={{
+                        position: "absolute",
+                        top: 6,
+                        right: 6,
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        width: "fit-content",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                <input id="image-upload" type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageSelect}/>                <div style={S.composerActions}>
                   <div style={S.composerTools}>
-                    <button style={S.composerToolBtn} title="Add Image">🖼️</button>
+                  <button
+                    style={S.composerToolBtn}
+                    title="Add Image"
+                    onClick={() => document.getElementById("image-upload")?.click()}
+                  >
+                    🖼️
+                  </button>                  
                     <button
                       id="open-code-editor-btn"
                       style={S.composerToolBtn}
